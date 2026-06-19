@@ -1,1 +1,21 @@
-
+Coverity_TTM_Linux-Jobs:
+  stage: Build_TTM
+  tags:
+    - ${LINUX_GITLAB_RUNNER}
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule" && $SCHEDULE_TYPE == "SAST"'
+  variables:
+    COVERITY_UNSUPPORTED_COMPILER_INVOCATION: "1"
+  script:
+    - rm -rf ${CI_PROJECT_DIR}/build ${CI_PROJECT_DIR}/cov-idir ${CI_PROJECT_DIR}/cov-config
+    - mkdir -p ${CI_PROJECT_DIR}/cov-idir
+    - mkdir -p ${CI_PROJECT_DIR}/cov-config
+    - export COVERITY_UNSUPPORTED_COMPILER_INVOCATION=1
+    - ${LINUX_COV_PATH}/cov-configure --config ${CI_PROJECT_DIR}/cov-config/coverity_config.xml --comptype gcc --compiler gcc --template
+    - ${LINUX_COV_PATH}/cov-configure --config ${CI_PROJECT_DIR}/cov-config/coverity_config.xml --comptype g++ --compiler g++ --template
+    - ${LINUX_COV_PATH}/cov-configure --config ${CI_PROJECT_DIR}/cov-config/coverity_config.xml --comptype g++ --compiler c++ --template
+    - cmake -S ${CI_PROJECT_DIR}/Threat_Model_SI -B ${CI_PROJECT_DIR}/build -DBUILD_CONFIG=Release
+    - ${LINUX_COV_PATH}/cov-build --config ${CI_PROJECT_DIR}/cov-config/coverity_config.xml --dir ${CI_PROJECT_DIR}/cov-idir make -C ${CI_PROJECT_DIR}/build -j30
+    - ls -la ${CI_PROJECT_DIR}/cov-idir
+    - ${LINUX_COV_PATH}/cov-analyze --dir ${CI_PROJECT_DIR}/cov-idir -j auto
+    - ${LINUX_COV_PATH}/cov-commit-defects --dir ${CI_PROJECT_DIR}/cov-idir --url ${COVERITY_SERVER} --user ${COVERITY_USER} --password ${COVERITY_PASSWORD} --stream "YOUR_STREAM_NAME"
